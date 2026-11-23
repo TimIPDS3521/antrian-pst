@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antrian PST BPS Kabupaten Ngawi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="images/logo-bps.png?v=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+
+        .marquee-track {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marquee 22s linear infinite;
+        }
+        @keyframes marquee {
+            0%   { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body class="bg-[#f5efe9] min-h-screen flex flex-col">
+
+    <!-- BAR ATAS: tanggal, judul, jam berjalan -->
+    <div class="bg-[#7a2418] text-white px-6 py-3 flex items-center justify-between">
+        <span id="tanggal" class="text-sm w-32">-</span>
+        <h1 class="text-lg md:text-xl font-bold tracking-wide text-center flex-1">
+            Sistem Antrian PST BPS Kabupaten Ngawi
+        </h1>
+        <div class="flex items-center gap-3 w-32 justify-end">
+            <span id="jam" class="font-semibold text-sm tracking-wide">-</span>
+            <div id="petugas-widget"></div>
+        </div>
+    </div>
+
+    <!-- HEADER: logo + QR -->
+    <div class="flex-1 flex flex-col md:flex-row items-center justify-center max-w-6xl w-full mx-auto px-6 py-8 gap-8">
+
+        <!-- KIRI: 3 Logo (tengah, diperbesar) + Statistik -->
+        <div class="flex-1 flex flex-col items-center text-center">
+
+            <div class="flex justify-center w-full mb-6">
+                <div class="flex items-center gap-8 md:gap-12 flex-wrap justify-center">
+                    <div class="text-center w-48">
+                        <img src="images/logo-1.png" alt="Logo 1" class="h-36 md:h-40 w-auto object-contain mx-auto">
+                        <p class="text-sm font-semibold text-slate-700 mt-2 leading-snug">Badan Pusat Statistik Kabupaten Ngawi</p>
+                    </div>
+
+                    <div class="w-px h-20 bg-slate-300 hidden md:block"></div>
+
+                    <div class="text-center w-36">
+                        <img src="images/logo-3.png" alt="Logo Melayani dengan Profesional, Integritas, dan Amanah" class="h-32 md:h-36 w-auto object-contain mx-auto">
+                    </div>
+
+                    <div class="w-px h-20 bg-slate-300 hidden md:block"></div>
+
+                    <div class="text-center w-48">
+                        <img src="images/logo-2.png" alt="Logo 2" class="h-36 md:h-40 w-auto object-contain mx-auto">
+                        <p class="text-sm font-semibold text-slate-700 mt-2 leading-snug">Pelayanan Statistik Terpadu</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kartu: Jumlah Pendaftar + Sedang Dipanggil sejajar -->
+            <div class="flex flex-col sm:flex-row gap-3 w-full max-w-2xl">
+                <div class="bg-white rounded-2xl shadow-sm px-6 py-6 flex-1 flex flex-col justify-center">
+                    <p class="text-xs text-slate-400 uppercase tracking-wide mb-1">Jumlah Pendaftar Hari Ini</p>
+                    <p id="stat-total" class="text-[9rem] leading-none font-bold text-[#7a2418]">-</p>
+                    <p class="text-xs text-slate-500 mt-1">
+                        Umum: <span id="stat-reguler" class="font-semibold">-</span>
+                        &nbsp;•&nbsp;
+                        Disabilitas: <span id="stat-disabilitas" class="font-semibold">-</span>
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm px-5 py-6 flex-1 flex flex-col">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wide mb-2 text-center">Sedang Dipanggil</p>
+
+                    <div id="stat-dipanggil" class="flex-1 flex items-center justify-center"></div>
+                </div>
+            </div>
+
+            <!-- Kartu: Menunggu & Selesai sejajar -->
+            <div class="flex gap-3 w-full max-w-2xl mt-3">
+                <div class="bg-white rounded-2xl shadow-sm px-4 py-4 flex-1 text-center">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Masih Menunggu</p>
+                    <p id="stat-menunggu" class="text-8xl leading-none font-bold text-amber-600">-</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm px-4 py-4 flex-1 text-center">
+                    <p class="text-[10px] text-slate-400 uppercase tracking-wide mb-1">Sudah Selesai</p>
+                    <p id="stat-selesai" class="text-8xl leading-none font-bold text-green-600">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- KANAN: QR Antrian + QR Survei -->
+        <div class="flex flex-col gap-5 w-full max-w-xs">
+            <div class="bg-white rounded-3xl shadow-lg p-6 text-center flex-1 flex flex-col justify-center">
+                <p class="text-slate-700 font-semibold mb-1">Scan untuk Ambil Antrian</p>
+                <p class="text-slate-400 text-xs mb-4">Gunakan kamera HP Anda</p>
+
+                <div id="qrcode" class="flex justify-center mb-3 p-3 bg-white rounded-xl border-4 border-[#7a2418]/10"></div>
+
+                <p id="qr-url" class="text-[11px] text-slate-400 break-all max-w-[200px] mx-auto"></p>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-lg p-6 text-center flex-1 flex flex-col justify-center">
+                <p class="text-slate-700 font-semibold mb-1">Scan untuk Survei Kebutuhan Data</p>
+                <p class="text-slate-400 text-xs mb-4">Bantu kami tingkatkan layanan</p>
+
+                <div class="flex justify-center p-3 bg-white rounded-xl border-4 border-[#7a2418]/10">
+                    <img src="images/qr-survei.png" alt="QR Survei Kebutuhan Data" class="w-[160px] h-[160px] object-contain">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RUNNING TEXT: alamat + jadwal operasional -->
+    <div class="bg-[#7a2418] text-white py-3 overflow-hidden">
+        <div class="marquee-track text-sm md:text-base font-medium">
+            📍 Alamat: Jalan Trunojoyo Nomor 64, Ngawi, Jawa Timur 63217 &nbsp;&nbsp;|&nbsp;&nbsp;
+            📢 Jadwal Operasional Layanan &nbsp;&nbsp;|&nbsp;&nbsp;
+            Senin&ndash;Kamis: 08.00 &ndash; 15.00 WIB &nbsp;&nbsp;|&nbsp;&nbsp;
+            Jumat: 08.00 &ndash; 15.30 WIB &nbsp;&nbsp;|&nbsp;&nbsp;
+            Sabtu &amp; Minggu: Libur &nbsp;&nbsp;|&nbsp;&nbsp;
+            Terima kasih atas kunjungan Anda 🙏
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/petugas-widget.js"></script>
+    <script>
+        // Alamat form pendaftaran, relatif terhadap halaman ini (aman di GitHub Pages maupun domain sendiri)
+        const urlDaftar = new URL('daftar.html', window.location.href).href;
+        document.getElementById('qr-url').textContent = urlDaftar;
+
+        new QRCode(document.getElementById("qrcode"), {
+            text: urlDaftar,
+            width: 160,
+            height: 160,
+            colorDark: "#7a2418",
+            colorLight: "#ffffff",
+        });
+
+        function updateWaktu() {
+            const now = new Date();
+            const opsiTanggal = { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' };
+            const opsiJam = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+
+            document.getElementById('tanggal').textContent = now.toLocaleDateString('id-ID', opsiTanggal);
+            document.getElementById('jam').textContent = now.toLocaleTimeString('id-ID', opsiJam);
+        }
+        updateWaktu();
+        setInterval(updateWaktu, 1000);
+
+        let petugasTerakhir = undefined;
+
+        // Ambil & update HANYA data antrian, tanpa reload halaman
+        async function refreshDataAntrian() {
+            try {
+                const data = await api.get('qrData');
+
+                document.getElementById('stat-total').textContent = data.totalHariIni;
+                document.getElementById('stat-reguler').textContent = data.totalReguler;
+                document.getElementById('stat-disabilitas').textContent = data.totalDisabilitas;
+                document.getElementById('stat-menunggu').textContent = data.totalMenunggu;
+                document.getElementById('stat-selesai').textContent = data.totalSelesai;
+
+                const ptKey = JSON.stringify(data.petugas);
+                if (ptKey !== petugasTerakhir) {
+                    petugasTerakhir = ptKey;
+                    renderPetugasWidget(document.getElementById('petugas-widget'), data.petugas, 'sm');
+                }
+
+                const box = document.getElementById('stat-dipanggil');
+                if (data.sedangDipanggil.length === 0) {
+                    box.innerHTML = `
+                        <div class="text-center py-4">
+                            <p class="text-4xl mb-2">🔔</p>
+                            <p class="text-slate-400 text-base">Belum ada nomor<br>yang dipanggil</p>
+                        </div>`;
+                } else {
+                    box.innerHTML = '<div class="flex flex-wrap justify-center gap-3 w-full">' +
+                        data.sedangDipanggil.map(a => `
+                            <div class="rounded-xl px-6 py-8 text-center min-w-[200px] ${
+                                a.kategori === 'disabilitas'
+                                    ? 'bg-amber-50 border border-amber-300'
+                                    : 'bg-[#7a2418]/5 border border-[#7a2418]/30'
+                            }">
+
+                                <p class="text-5xl font-extrabold whitespace-nowrap ${
+                                    a.kategori === 'disabilitas'
+                                        ? 'text-amber-600'
+                                        : 'text-[#7a2418]'
+                                }">
+                                    ${esc(a.nomor_antrian)}
+                                </p>
+
+                                <p class="text-lg text-slate-700 font-medium mt-2 truncate">
+                                    ${esc(a.nama)}
+                                </p>
+
+                            </div>
+                        `).join('') +
+                    '</div>';
+                }
+            } catch (e) {
+                console.error('Gagal memuat data antrian', e);
+            }
+        }
+
+        refreshDataAntrian();
+        poll(refreshDataAntrian, 4000);
+    </script>
+</body>
+</html>

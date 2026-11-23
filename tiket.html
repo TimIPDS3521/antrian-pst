@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nomor Antrian Anda</title>
+    <link rel="icon" type="image/png" href="images/logo-bps.png?v=1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Poppins', sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-[#7a2418] text-white shadow">
+            <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <img src="images/logo-bps.png" alt="Logo BPS" class="h-10 w-auto object-contain">
+                    <div>
+                        <p class="font-semibold leading-tight">Sistem Antrian PST BPS Kabupaten Ngawi</p>
+                        <p class="text-xs text-indigo-100">Layanan kunjungan &amp; peminjaman</p>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-3xl w-full mx-auto px-4 py-8">
+            <div id="konten"></div>
+        </main>
+
+        <footer class="text-center text-xs text-slate-400 py-4">
+            &copy; <span id="tahun"></span> PST BPS Kabupaten Ngawi. Semua data yang Anda masukkan dijaga kerahasiaannya.
+        </footer>
+    </div>
+
+<style>
+    @media print {
+        body * { visibility: hidden; }
+        #tiket, #tiket * { visibility: visible; }
+        #tiket { position: absolute; top: 0; left: 0; width: 100%; }
+        .no-print { display: none; }
+    }
+</style>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        document.getElementById('tahun').textContent = new Date().getFullYear();
+
+        const antrianId = new URLSearchParams(window.location.search).get('id');
+        const konten = document.getElementById('konten');
+        let ratingTerpilih = 0;
+
+        function pesanKartu(teks, link) {
+            konten.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-sm p-8 text-center max-w-md mx-auto">
+                    <p class="text-slate-600 text-sm mb-4">${esc(teks)}</p>
+                    ${link ? '<a href="daftar.html" class="inline-block bg-[#7a2418] hover:bg-[#5f1c12] text-white text-sm font-medium py-2.5 px-5 rounded-lg">Daftar Antrian</a>' : ''}
+                </div>`;
+        }
+
+        function bintangStatis(rating) {
+            return Array.from({ length: 5 }, (_, i) => `<span>${i + 1 <= rating ? '⭐' : '☆'}</span>`).join('');
+        }
+
+        function tanggalIndah(ymd) {
+            const [y, m, d] = ymd.split('-').map(Number);
+            return String(d).padStart(2, '0') + ' ' + BULAN_EN[m - 1] + ' ' + y;
+        }
+
+        function renderTiket(d) {
+            const a = d.antrian;
+            const jam = (a.created_at || '').slice(11, 16);
+            const ratingHtml = a.rating
+                ? `<div id="rating-terkirim">
+                        <p class="text-sm font-medium text-slate-700 mb-2">Terima kasih atas penilaian Anda 🙏</p>
+                        <div class="flex justify-center gap-1 text-3xl mb-2">${bintangStatis(a.rating)}</div>
+                        ${a.catatanRating ? `<p class="text-xs text-slate-400 italic">"${esc(a.catatanRating)}"</p>` : ''}
+                   </div>`
+                : `<div id="rating-form">
+                        <p class="text-sm font-medium text-slate-700 mb-3">Bagaimana pelayanan yang Anda terima hari ini?</p>
+
+                        <div id="star-picker" class="flex justify-center gap-2 text-4xl mb-4 select-none">
+                            ${[1, 2, 3, 4, 5].map(i => `<span class="star cursor-pointer text-slate-300 transition" data-value="${i}">☆</span>`).join('')}
+                        </div>
+
+                        <textarea id="catatan-rating" rows="2" placeholder="Catatan untuk petugas (opsional)"
+                            class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-3 focus:ring-2 focus:ring-[#7a2418] focus:border-[#7a2418]"></textarea>
+
+                        <button id="btn-submit-rating" type="button" disabled
+                            class="w-full bg-slate-300 text-white text-sm font-medium py-2.5 rounded-lg cursor-not-allowed transition">
+                            Kirim Penilaian
+                        </button>
+                        <p id="rating-error" class="text-xs text-red-500 mt-2 hidden"></p>
+                   </div>`;
+
+            konten.innerHTML = `
+<div class="bg-white rounded-2xl shadow-sm p-8 text-center max-w-md mx-auto relative" id="tiket">
+
+    <div class="flex items-center justify-center gap-4 mb-4 flex-wrap">
+        <img src="images/logo-1.png" alt="Logo 1" class="h-10 w-auto object-contain">
+        <img src="images/logo-2.png" alt="Logo 2" class="h-10 w-auto object-contain">
+        <img src="images/logo-3.png" alt="Logo Melayani dengan Profesional, Integritas, dan Amanah" class="h-10 w-auto object-contain">
+    </div>
+
+    <div class="border-t border-dashed my-4"></div>
+
+    <p class="text-slate-500 text-sm mb-2">Pendaftaran berhasil! Nomor antrian Anda:</p>
+
+    <div class="my-4 py-8 rounded-2xl bg-[#7a2418]/5">
+        <p class="text-5xl font-bold tracking-widest text-[#7a2418]">
+            ${esc(a.nomor_antrian)}
+        </p>
+        <p class="text-xs mt-2 uppercase tracking-wide text-slate-400">
+            ${a.kategori === 'disabilitas' ? 'Jalur Disabilitas' : 'Jalur Umum / Reguler'}
+        </p>
+    </div>
+
+    <div class="text-left text-sm text-slate-600 space-y-1 mb-6">
+        <p><span class="text-slate-400">Nama:</span> ${esc(a.nama)}</p>
+        <p><span class="text-slate-400">Status:</span>
+            <span id="info-status" class="font-medium">${esc(a.statusLabel)}</span>
+        </p>
+        <p><span class="text-slate-400">Perkiraan orang di depan Anda:</span> <span id="info-di-depan">${d.antrianDiDepan}</span> orang</p>
+        <p><span class="text-slate-400">Tanggal:</span> ${esc(tanggalIndah(a.tanggal))}</p>
+        <p><span class="text-slate-400">Jam Daftar:</span> ${esc(jam)} WIB</p>
+    </div>
+
+    <p class="text-xs text-slate-400 mb-4">Tunjukkan nomor ini kepada petugas saat dipanggil. Pantau nomor yang sedang dilayani di layar display perpustakaan.</p>
+
+    <div class="flex gap-3 no-print mb-2">
+        <button onclick="window.print()" class="flex-1 border border-slate-300 text-slate-600 text-sm font-medium py-2.5 rounded-lg">🖨️ Cetak</button>
+        <a href="display.html" class="flex-1 bg-[#7a2418] hover:bg-[#5f1c12] text-white text-sm font-medium py-2.5 rounded-lg">Lihat Antrian</a>
+    </div>
+
+    <div id="rating-section"
+         class="mt-6 pt-6 border-t no-print ${a.status !== 'selesai' ? 'hidden' : ''}">
+        ${ratingHtml}
+    </div>
+</div>`;
+            pasangStarPicker();
+        }
+
+        function pasangStarPicker() {
+            const starPicker = document.getElementById('star-picker');
+            if (!starPicker) return;
+            const stars = starPicker.querySelectorAll('.star');
+            const btnSubmit = document.getElementById('btn-submit-rating');
+
+            function renderStars(value) {
+                stars.forEach(star => {
+                    const v = parseInt(star.dataset.value);
+                    star.textContent = v <= value ? '⭐' : '☆';
+                    star.classList.toggle('text-amber-500', v <= value);
+                    star.classList.toggle('text-slate-300', v > value);
+                });
+            }
+
+            stars.forEach(star => {
+                star.addEventListener('click', () => {
+                    ratingTerpilih = parseInt(star.dataset.value);
+                    renderStars(ratingTerpilih);
+                    btnSubmit.disabled = false;
+                    btnSubmit.classList.remove('bg-slate-300', 'cursor-not-allowed');
+                    btnSubmit.classList.add('bg-[#7a2418]', 'hover:bg-[#5f1c12]', 'cursor-pointer');
+                });
+            });
+
+            btnSubmit.addEventListener('click', async () => {
+                if (ratingTerpilih < 1) return;
+
+                const yakin = confirm('Kirim penilaian ' + ratingTerpilih + ' bintang? Penilaian tidak dapat diubah setelah dikirim.');
+                if (!yakin) return;
+
+                const catatan = document.getElementById('catatan-rating').value;
+                const errorBox = document.getElementById('rating-error');
+                errorBox.classList.add('hidden');
+
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = 'Mengirim...';
+
+                try {
+                    await api.post('rating', { id: Number(antrianId), rating: ratingTerpilih, catatan: catatan });
+                    tampilkanRatingTerkirim(ratingTerpilih, catatan);
+                } catch (e) {
+                    errorBox.textContent = e.status === 0
+                        ? 'Terjadi kesalahan jaringan. Coba lagi.'
+                        : (e.errors ? Object.values(e.errors).flat().join(' ') : (e.message || 'Gagal mengirim penilaian.'));
+                    errorBox.classList.remove('hidden');
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = 'Kirim Penilaian';
+                }
+            });
+        }
+
+        function tampilkanRatingTerkirim(rating, catatan) {
+            const bintang = Array.from({ length: 5 }, (_, i) => (i < rating ? '⭐' : '☆')).join('');
+            document.getElementById('rating-section').innerHTML = `
+                <div id="rating-terkirim">
+                    <p class="text-sm font-medium text-slate-700 mb-2">Terima kasih atas penilaian Anda 🙏</p>
+                    <div class="flex justify-center gap-1 text-3xl mb-2">${bintang.split('').join(' ')}</div>
+                    ${catatan ? `<p class="text-xs text-slate-400 italic">"${esc(catatan)}"</p>` : ''}
+                </div>
+            `;
+        }
+
+        // === Polling status tiap 30 detik ===
+        async function refreshStatusTiket() {
+            try {
+                const d = await api.get('tiket', { id: antrianId });
+                const a = d.antrian;
+
+                document.getElementById('info-status').textContent = a.statusLabel;
+                document.getElementById('info-di-depan').textContent = d.antrianDiDepan;
+
+                const ratingSection = document.getElementById('rating-section');
+                if (a.status === 'selesai' && ratingSection.classList.contains('hidden')) {
+                    ratingSection.classList.remove('hidden');
+                }
+                if (a.rating && !document.getElementById('rating-terkirim')) {
+                    tampilkanRatingTerkirim(a.rating, a.catatanRating);
+                }
+            } catch (e) {
+                console.error('Gagal memuat status antrian', e);
+            }
+        }
+
+        async function muat() {
+            if (!antrianId || !/^\d+$/.test(antrianId)) {
+                pesanKartu('Nomor tiket tidak valid.', true);
+                return;
+            }
+            try {
+                renderTiket(await api.get('tiket', { id: antrianId }));
+                poll(refreshStatusTiket, 30000);
+            } catch (e) {
+                pesanKartu(e.status === 404 ? 'Tiket tidak ditemukan.' : (e.message || 'Gagal memuat tiket.'), e.status === 404);
+            }
+        }
+        muat();
+    </script>
+</body>
+</html>
