@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daftar Antrian</title>
+    <link rel="icon" type="image/png" href="../images/logo-bps.png?v=2">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Poppins', sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <div id="app"></div>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+
+if (ADMIN.require()) (async function () {
+    const page = ADMIN.shell('Daftar Antrian', 'antrian');
+    const q = new URLSearchParams(window.location.search);
+    const tanggal = q.get('tanggal') || ADMIN.hariIni();
+    const kategori = q.get('kategori') || '', status = q.get('status') || '', cari = q.get('cari') || '';
+    const sel = (a, b) => a === b ? 'selected' : '';
+
+    function urlFor(p) {
+        const n = new URLSearchParams(q); n.set('page', p);
+        return 'antrian.html?' + n.toString();
+    }
+
+    page.innerHTML = `
+<div class="bg-white rounded-xl shadow-sm p-5 mb-5">
+    <form method="GET" action="antrian.html" class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+        <div class="col-span-2 md:col-span-1">
+            <label class="block text-xs text-slate-500 mb-1">Tanggal</label>
+            <input type="date" name="tanggal" value="${esc(tanggal)}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div>
+            <label class="block text-xs text-slate-500 mb-1">Kategori</label>
+            <select name="kategori" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">Semua</option>
+                <option value="reguler" ${sel(kategori, 'reguler')}>Umum</option>
+                <option value="disabilitas" ${sel(kategori, 'disabilitas')}>Disabilitas</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs text-slate-500 mb-1">Status</label>
+            <select name="status" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">Semua</option>
+                ${ADMIN.STATUS.map(s => `<option value="${s[0]}" ${sel(status, s[0])}>${s[1]}</option>`).join('')}
+            </select>
+        </div>
+        <div class="col-span-2 md:col-span-1">
+            <label class="block text-xs text-slate-500 mb-1">Cari nama / no. antrian / NIK</label>
+            <input type="text" name="cari" value="${esc(cari)}" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <div class="flex gap-2">
+            <button class="bg-[#7a2418] hover:bg-[#5f1c12] text-white text-sm px-4 py-2 rounded-lg flex-1">Filter</button>
+            <a href="#" id="btn-export" class="border border-slate-300 text-sm px-4 py-2 rounded-lg" title="Export CSV">⬇️</a>
+        </div>
+    </form>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+            <tr class="text-left text-slate-500 text-xs">
+                <th class="px-4 py-3">No. Antrian</th>
+                <th class="px-4 py-3">Nama</th>
+                <th class="px-4 py-3">No. HP</th>
+                <th class="px-4 py-3">Kategori</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="tbody" class="divide-y"><tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Memuat...</td></tr></tbody>
+    </table>
+</div>
+
+<div class="mt-4" id="paginasi"></div>`;
+
+    document.getElementById('btn-export').addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            const r = await ADMIN.call('antrianExport', { tanggal });
+            const blob = new Blob([r.csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = r.filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        } catch (err) { alert(err.message || 'Gagal mengekspor data.'); }
+    });
+
+    async function muat() {
+        let pg;
+        try { pg = await ADMIN.call('antrianList', { tanggal, kategori, status, cari, page: q.get('page') || 1 }); }
+        catch (e) { document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-red-600">' + esc(e.message || 'Gagal memuat data.') + '</td></tr>'; return; }
+
+        document.getElementById('tbody').innerHTML = pg.data.length
+            ? pg.data.map(a => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-semibold">${esc(a.nomor_antrian)}</td>
+                    <td class="px-4 py-3">
+                        <a href="antrian-detail.html?id=${a.id}" class="text-[#7a2418] hover:underline">${esc(a.nama)}</a>
+                    </td>
+                    <td class="px-4 py-3 text-slate-500">${esc(a.no_hp)}</td>
+                    <td class="px-4 py-3">
+                       <span class="text-xs px-2 py-1 rounded-full ${a.kategori == 'disabilitas' ? 'bg-amber-100 text-amber-700' : 'bg-[#7a2418]/10 text-[#7a2418]'}">
+                            ${a.kategori == 'disabilitas' ? 'Disabilitas' : 'Umum'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <select data-id="${a.id}" class="sel-status text-xs border border-slate-300 rounded-lg px-2 py-1.5">
+                            ${ADMIN.STATUS.map(s => `<option value="${s[0]}" ${a.status == s[0] ? 'selected' : ''}>${s[1]}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="px-4 py-3">
+                        <a href="antrian-detail.html?id=${a.id}" class="text-xs text-slate-500 hover:text-[#7a2418]">Detail &rarr;</a>
+                    </td>
+                </tr>`).join('')
+            : '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Tidak ada data antrian untuk filter ini.</td></tr>';
+
+        document.getElementById('paginasi').innerHTML = ADMIN.pagination(pg, urlFor);
+
+        document.querySelectorAll('.sel-status').forEach(el => el.addEventListener('change', async () => {
+            el.disabled = true;
+            try {
+                const r = await ADMIN.call('updateStatus', { id: Number(el.dataset.id), status: el.value });
+                ADMIN.showFlash(r.message);
+                await muat();
+            } catch (err) { alert(err.message || 'Gagal memperbarui status.'); await muat(); }
+        }));
+    }
+    muat();
+})();
+
+    </script>
+</body>
+</html>

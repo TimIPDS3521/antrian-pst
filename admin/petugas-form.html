@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Petugas</title>
+    <link rel="icon" type="image/png" href="../images/logo-bps.png?v=2">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Poppins', sans-serif; }</style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <div id="app"></div>
+    <script src="../js/config.js"></script>
+    <script src="../js/api.js"></script>
+    <script src="../js/admin.js"></script>
+    <script>
+
+if (ADMIN.require()) (async function () {
+    const id = new URLSearchParams(window.location.search).get('id');
+    const edit = !!id;
+    const page = ADMIN.shell(edit ? 'Edit Petugas' : 'Tambah Petugas', 'petugas');
+
+    let info;
+    try { info = await ADMIN.call('petugasForm', id ? { id: Number(id) } : {}); }
+    catch (e) { page.innerHTML = '<p class="text-sm text-red-600">' + esc(e.message || 'Gagal memuat data.') + '</p>'; return; }
+    const p = info.petugas, hariTersedia = info.hariTersedia;
+    const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#7a2418] focus:border-[#7a2418]';
+    const fileCls = 'w-full border border-slate-300 rounded-lg px-3 py-2 text-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-[#7a2418]/10 file:text-[#7a2418] file:text-xs';
+
+    const header = edit ? `
+        <div class="flex items-center gap-4 mb-5">
+            <div class="w-16 h-16 rounded-full overflow-hidden bg-[#7a2418]/10 flex items-center justify-center text-[#7a2418] font-semibold text-xl flex-shrink-0">
+                ${ADMIN.fotoHtml(p, 'w-full h-full object-cover')}
+            </div>
+            <div>
+                <p class="font-medium text-slate-800">${esc(p.nama)}</p>
+                <p class="text-xs text-slate-400 capitalize">Bertugas hari ${esc(p.hari)}</p>
+            </div>
+        </div>` : '';
+
+    const hariOpsi = edit
+        ? `<option value="${esc(p.hari)}" selected>${esc(ADMIN.cap(p.hari))} (saat ini)</option>` +
+          hariTersedia.map(h => `<option value="${h}">${ADMIN.cap(h)}</option>`).join('')
+        : '<option value="">-- Pilih Hari --</option>' + hariTersedia.map(h => `<option value="${h}">${ADMIN.cap(h)}</option>`).join('');
+
+    page.innerHTML = `
+<div class="max-w-lg">
+    <a href="petugas.html" class="text-sm text-slate-500 mb-4 inline-block">&larr; Kembali</a>
+
+    <div class="bg-white rounded-xl shadow-sm p-6">
+        <div id="error-box" class="hidden mb-5 bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg">
+            <ul id="error-list" class="list-disc list-inside space-y-0.5"></ul>
+        </div>
+        ${header}
+        <form id="form-petugas" class="space-y-4">
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Nama Lengkap</label>
+                <input type="text" name="nama" value="${esc(edit ? p.nama : '')}" required class="${inputCls}">
+            </div>
+
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">NIP</label>
+                <input type="text" name="nip" value="${esc(edit ? p.nip : '')}" required class="${inputCls}">
+            </div>
+
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">Hari Bertugas</label>
+                <select name="hari" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">${hariOpsi}</select>
+                ${!edit && hariTersedia.length === 0 ? '<p class="text-xs text-amber-600 mt-1">Semua hari sudah ada petugasnya. Edit data yang ada kalau ingin mengganti.</p>' : ''}
+            </div>
+
+            <div>
+                <label class="block text-xs text-slate-500 mb-1">${edit ? 'Ganti Foto (opsional)' : 'Foto (opsional)'}</label>
+                <input type="file" name="foto" accept="image/*" class="${fileCls}">
+                <p class="text-xs text-slate-400 mt-1">${edit
+                    ? 'Kosongkan kalau tidak ingin mengganti foto.'
+                    : 'Format JPG/PNG/WEBP, maksimal 2MB. Kalau tidak diisi, otomatis tampil inisial nama.'}</p>
+            </div>
+
+            <button type="submit" class="bg-[#7a2418] hover:bg-[#5f1c12] text-white text-sm px-5 py-2.5 rounded-lg w-full">
+                ${edit ? 'Simpan Perubahan' : 'Simpan Petugas'}
+            </button>
+        </form>
+    </div>
+</div>`;
+
+    const box = document.getElementById('error-box'), list = document.getElementById('error-list');
+    function tampilError(arr) {
+        list.innerHTML = arr.map(x => '<li>' + esc(x) + '</li>').join('');
+        box.classList.remove('hidden');
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function bacaFile(file) {
+        return new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(String(r.result).split(',')[1]);
+            r.onerror = () => reject(new Error('Gagal membaca file.'));
+            r.readAsDataURL(file);
+        });
+    }
+
+    document.getElementById('form-petugas').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        box.classList.add('hidden');
+        const f = new FormData(e.target), btn = e.target.querySelector('button[type=submit]');
+        const payload = { nama: f.get('nama'), nip: f.get('nip'), hari: f.get('hari') };
+        if (edit) payload.id = Number(id);
+
+        const file = f.get('foto');
+        if (file && file.size > 0) {
+            if (!/^image\/(jpeg|png|webp)$/.test(file.type)) return tampilError(['File harus berupa gambar (jpg, jpeg, png, webp).']);
+            if (file.size > 2 * 1024 * 1024) return tampilError(['Ukuran foto maksimal 2MB.']);
+            payload.foto_base64 = await bacaFile(file);
+            payload.foto_mime = file.type;
+        }
+
+        const label = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+        try {
+            const r = await ADMIN.call('petugasSave', payload);
+            ADMIN.flash(r.message);
+            window.location.href = 'petugas.html';
+        } catch (err) {
+            tampilError(err.errors ? Object.values(err.errors).flat() : [err.message || 'Gagal menyimpan.']);
+            btn.disabled = false; btn.textContent = label;
+        }
+    });
+})();
+
+    </script>
+</body>
+</html>
